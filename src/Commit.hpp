@@ -1,3 +1,5 @@
+#include <string>
+
 class Commit {
     private:
         std::string id;
@@ -13,4 +15,7 @@ class Commit {
     
         void saveMetadata(const std::string& repoPath) const;
 };
+
+std::string checkoutHash();
+std::string makeTimestamp();
     
