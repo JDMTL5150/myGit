@@ -1,17 +1,26 @@
+
 #include <string>
+#include <fstream>
+#include <vector>
 
 class Commit {
     private:
         std::string id;
+        std::string parentId;
         std::string message;
         std::string timestamp;
+        int numFiles;
     
     public:
         Commit(const std::string& msg);
     
+        std::string getParentId() const;
+        int getNumFiles() const;
         std::string getId() const;
         std::string getMessage() const;
         std::string getTimestamp() const;
+
+        void setNumFiles(int num);
     
         void saveMetadata(const std::string& repoPath) const;
 };

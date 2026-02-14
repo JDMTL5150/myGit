@@ -7,11 +7,44 @@
 using namespace std;
 
 Commit::Commit(const string& msg):
-    id(checkoutHash()),message(msg),timestamp(makeTimestamp()) {}
+    message(msg),timestamp(makeTimestamp()),numFiles(0) {
+        string path = "../etc/commit_ids.txt";
+        string comID;
+        vector<string> commits;
+        bool isUnique = true;
+        ifstream commFile(path,std::ios::in);
+        // reading commits into a vector
+        while(getline(commFile,comID)){
+            commits.push_back(comID);
+        }
+        // checking for unique commit id
+        while(true){
+            id = checkoutHash();
+            for(auto comId : commits){
+                if(comID == id) {
+                    isUnique = false;
+                }
+            }
+            if(!isUnique) continue;
+            else break;
+        }
+        parentId = commits[commits.size()];
+    }
 
+string Commit::getParentId() const {
+    return parentId;
+}
 
 string Commit::getMessage() const {
     return message;
+}
+
+int Commit::getNumFiles() const {
+    return numFiles;
+}
+
+void Commit::setNumFiles(int num) {
+    numFiles = num;
 }
 
 string Commit::getId() const {

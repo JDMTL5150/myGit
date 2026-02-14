@@ -1,13 +1,3 @@
-// class StageFile {
-//     private:
-//         const Commit::Commit& commitData;
-//         const std::string content;
-//         const std::string metadata;
-//     public:
-//         StageFile(const std::string& filename);
-//         void setCommit(Commit::Commit& c);
-//         void setMetadata(const std::string md);
-//     };
 
 #include "StageFile.hpp"
 
@@ -19,10 +9,11 @@
 using namespace std;
 
 StageFile::StageFile(const std::string& file)
-    : filename(file) {
+    : isFail(false),filename(file) {
     ifstream in(file, ios::in);
     if (!in) {
         cerr << "[-] Could not open file for staging: " << file << endl;
+        isFail = true;
         return;
     }
 
@@ -39,6 +30,14 @@ StageFile::StageFile(const std::string& file)
 
 std::string StageFile::getContent() const {
     return content;
+}
+
+bool StageFile::failed(){
+    return isFail;
+}
+
+string StageFile::getFileName() const {
+    return filename; 
 }
 
 void StageFile::writeToFile(ofstream& file) const {

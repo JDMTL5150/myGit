@@ -14,6 +14,9 @@ void printInfo(void) {
     cout << "commit - Commit the current stage area to the repo." << endl;
     cout << "status - Show currently staged files." << endl;
     cout << "delete - delete the local repository." << endl;
+    cout << "clear  - Clears the staging area." << endl;
+    cout << "diff   - shows the modifications between 2 commits." << endl;
+    cout << "repo   - prints the data of the local repo." << endl;
     cout << "log    - Show log history." << endl;
 }
 
@@ -79,18 +82,51 @@ int main(int argc, char* argv[]) {
 
         if(filesystem::exists(".mygit")){
             filesystem::remove_all(".mygit");
+            string commitspath = "/etc/commit_ids.txt";
+            ofstream f(commitspath,std::ios::trunc);
             cout << "[+] Local repository deleted." << endl;
+            f.close();
         }
         else {
             cout << "[-] No repository to remove." << endl;
         }
     }
+    else if(command == "repo") {
+        Repository repo;
+        repo.printRepoData();
+    }
     else if(command == "log") {
         Repository repo;
         repo.viewLogs();
     }
+    else if(command == "branch") {
+        if()
+    }
     else if(command == "help") {
         printInfo();
+    }
+    else if(command == "diff") {
+        if(argc != 4) {
+            cout << "USAGE: myGit diff <commitID1> <commitID2>" << endl;
+            return 1;
+        }
+        Repository repo;
+        repo.diff(argv[2],argv[3]);
+    }
+    else if(command == "checkout") {
+        if(argc != 3){
+            cout << "USAGE: myGit checkout <commitID>" << endl;
+            return 1;
+        }
+        Repository repo;
+        repo.checkout(argv[2]);
+    }
+    else if(command == "clear"){
+        Repository repo;
+        repo.clearStagingArea();
+    }
+    else {
+        cout << "[-] command not found. - " << command << endl;
     }
 
     return 0;
