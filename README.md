@@ -1,4 +1,4 @@
-# Mini Git Implementation
+# Mini Git Implementation in C++
 ----
 This is a personal project I am building alongside my studies.
 
