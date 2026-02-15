@@ -18,11 +18,16 @@ void printInfo(void) {
     cout << "diff   - shows the modifications between 2 commits." << endl;
     cout << "repo   - prints the data of the local repo." << endl;
     cout << "log    - Show log history." << endl;
+    cout << endl;
+    cout << "Branch Commands:" << endl;
+    cout << "branch               - print all branches." << endl;
+    cout << "branch <branch_name> - create a branch." << endl;
 }
 
 int main(int argc, char* argv[]) {
+    Repository repo;
     if (argc < 2) {
-        cout << "USAGE: myGit <command> - use help for info" << endl;
+        cout << "USAGE: jvc <command> - use help for info" << endl;
         return 1;
     }
 
@@ -30,7 +35,7 @@ int main(int argc, char* argv[]) {
 
     if (command == "init") {
         if (argc != 3) {
-            cout << "USAGE: myGit init <repo_name>" << endl;
+            cout << "USAGE: jvc init <repo_name>" << endl;
             return 1;
         }
 
@@ -38,16 +43,15 @@ int main(int argc, char* argv[]) {
         repo.init();
     } else if (command == "add") {
         if (argc < 3) {
-            cout << "USAGE: myGit add <filename>" << endl;
+            cout << "USAGE: jvc add <filename>" << endl;
             return 1;
         }
 
-        if (!filesystem::exists(".mygit")) {
-            cout << "[-] Not a myGit repository in current directory." << endl;
+        if (!filesystem::exists(".jvc")) {
+            cout << "[-] Not a jvc repository in current directory." << endl;
             return 1;
         }
 
-        Repository repo;
         for(auto i = 2; i < argc; i++){
             repo.add(argv[i]);
         }
@@ -55,33 +59,31 @@ int main(int argc, char* argv[]) {
     }
     else if(command == "commit"){
         if (argc != 3) {
-            cout << "USAGE: myGit commit <message>" << endl;
+            cout << "USAGE: jvc commit <message>" << endl;
             return 1;
         }
 
-        if (!filesystem::exists(".mygit")) {
-            cout << "[-] Not a myGit repository in current directory." << endl;
+        if (!filesystem::exists(".jvc")) {
+            cout << "[-] Not a jvc repository in current directory." << endl;
             return 1;
         }
-        Repository repo;
         repo.commit(argv[2]);
     }
     else if(command == "status") {
-        if (!filesystem::exists(".mygit")) {
-            cout << "[-] Not a myGit repository in current directory." << endl;
+        if (!filesystem::exists(".jvc")) {
+            cout << "[-] Not a jvc repository in current directory." << endl;
             return 1;
         }
-        Repository repo;
         repo.stageStatus("stage.txt");
     }
     else if(command == "delete") {
         if(argc != 3 || strcasecmp(argv[2],"y") != 0){
-            cout << "USAGE: myGit delete <y> (to confirm)" << endl;
+            cout << "USAGE: jvc delete <y> (to confirm)" << endl;
             return 1;
         }
 
-        if(filesystem::exists(".mygit")){
-            filesystem::remove_all(".mygit");
+        if(filesystem::exists(".jvc")){
+            filesystem::remove_all(".jvc");
             string commitspath = "/etc/commit_ids.txt";
             ofstream f(commitspath,std::ios::trunc);
             cout << "[+] Local repository deleted." << endl;
@@ -92,38 +94,51 @@ int main(int argc, char* argv[]) {
         }
     }
     else if(command == "repo") {
-        Repository repo;
         repo.printRepoData();
     }
     else if(command == "log") {
-        Repository repo;
         repo.viewLogs();
     }
     else if(command == "branch") {
-        if()
+        if(argc == 2) {
+            repo.printBranches();
+        }
+        else if(argc == 3) {
+            repo.makeBranch(argv[argc - 1]);
+        }
+        else {
+            cout << "Branch Commands:" << endl;
+            cout << "branch               - print all branches." << endl;
+            cout << "branch <branch_name> - create a branch." << endl;
+        }
     }
     else if(command == "help") {
         printInfo();
     }
     else if(command == "diff") {
-        if(argc != 4) {
-            cout << "USAGE: myGit diff <commitID1> <commitID2>" << endl;
+        if(argc != 3) {
+            cout << "USAGE: jvc diff <commitID1>" << endl;
             return 1;
         }
-        Repository repo;
-        repo.diff(argv[2],argv[3]);
+        repo.diff(argv[2]);
     }
     else if(command == "checkout") {
         if(argc != 3){
-            cout << "USAGE: myGit checkout <commitID>" << endl;
+            cout << "USAGE: jvc checkout <commitID>" << endl;
             return 1;
         }
-        Repository repo;
         repo.checkout(argv[2]);
     }
     else if(command == "clear"){
-        Repository repo;
-        repo.clearStagingArea();
+        if(argc >= 3 && strcmp(argv[2],"-f") == 0) {
+            if(argc < 4) {
+                cout << "USAGE: jvc clear -f <filename>" << endl;
+                return 1;
+            }
+            string filename = argv[3];
+            repo.removeStageFile(filename);
+        }
+        else repo.clearStagingArea();
     }
     else {
         cout << "[-] command not found. - " << command << endl;

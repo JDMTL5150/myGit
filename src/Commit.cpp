@@ -6,9 +6,12 @@
 
 using namespace std;
 
-Commit::Commit(const string& msg):
+Commit::Commit(const string& commitId) :
+    id(commitId) {}
+
+Commit::Commit(const string& msg,const string& repoName):
     message(msg),timestamp(makeTimestamp()),numFiles(0) {
-        string path = "../etc/commit_ids.txt";
+        string path = repoName + "/etc/commit_ids.txt";
         string comID;
         vector<string> commits;
         bool isUnique = true;
@@ -28,7 +31,7 @@ Commit::Commit(const string& msg):
             if(!isUnique) continue;
             else break;
         }
-        parentId = commits[commits.size()];
+        if(commits.size() > 0) parentId = commits.back();
     }
 
 string Commit::getParentId() const {
@@ -45,6 +48,21 @@ int Commit::getNumFiles() const {
 
 void Commit::setNumFiles(int num) {
     numFiles = num;
+}
+
+void Commit::loadParent() {
+    ifstream file(".jvc/snapshots/" + id + "/parent", std::ios::in);
+    if(file) file >> this->parentId;
+    file.close();
+}
+
+string Commit::loadLatest() {
+    vector<string> comms;
+    ifstream file(".jvc/etc/commit_ids.txt",std::ios::in);
+    string line;
+    while(getline(file,line)) comms.push_back(line);
+    if(comms.empty()) return "";
+    return comms.back();
 }
 
 string Commit::getId() const {

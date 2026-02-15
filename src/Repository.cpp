@@ -8,14 +8,24 @@
 
 #include "StageFile.hpp"
 #include "Repository.hpp"
+#include "Branch.hpp"
 
 using namespace std;
 
 Repository::Repository(string repoName) :
-    repoPath(".mygit"),repo_name(repoName) {}
+    repoPath(".jvc"),repo_name(repoName) {}
 
 Repository::Repository() :
-    repoPath(".mygit") {}
+    repoPath(".jvc") {}
+
+vector<string> fileToVec(const string& filename) {
+    vector<string> vec;
+    ifstream stream(filename,std::ios::in);
+    string line;
+    while(getline(stream,line)) vec.push_back(line);
+    stream.close();
+    return vec;
+}
 
 void Repository::init() {
     if(!filesystem::exists(repoPath)){
@@ -24,9 +34,17 @@ void Repository::init() {
         filesystem::create_directory(repoPath + "/branches");
         filesystem::create_directory(repoPath + "/headers");
         filesystem::create_directory(repoPath + "/etc");
-        
-        ofstream file(repoPath + "/branches/main.txt");
+        // init branch files
+        ofstream comFile(repoPath + "/etc/commit_ids.txt",std::ios::out);
+        ofstream branchesFile(repoPath + "/branches/branches.txt",std::ios::app);
+        ofstream file(repoPath + "/branches/main",std::ios::out);
+        ofstream headFile(repoPath + "/branches/HEAD",std::ios::out);
+        headFile << "main\n";
+        branchesFile << "main\n";
         file.close();
+        comFile.close();
+        headFile.close();
+        branchesFile.close();
 
         this->uuid = generateUUID();
 
@@ -44,17 +62,74 @@ void Repository::setRepoName(const string& name) {
     repo_name = name;
 }
 
+void Repository::printBranches() {
+    string line;
+    ifstream infile(repoPath + "/branches/branches.txt",std::ios::in);
+    if(!infile) {
+        cerr << "[-] could not find the branches file." << endl;
+        return;
+    }
+    cout << "[*] BRANCHES [*]" << endl;
+    while(getline(infile,line)) {
+        cout << line << endl;
+    }
+    infile.close();
+}
+
+void Repository::removeStageFile(const std::string& filename) {
+    vector<string> lines;
+    ifstream infile(repoPath + "/stage.txt",std::ios::in);
+    if(!infile) {
+        cerr << "[-] Could not find staging area." << endl;
+        return;
+    }
+    
+    string line;
+    while(getline(infile,line)) lines.push_back(line);
+    infile.close();
+    ofstream out(repoPath + "/stage.txt",std::ios::out);
+    for(const auto& entry : lines) {
+        string filepath = entry.substr(0,entry.find(' '));
+        string file_name = filesystem::path(filepath).filename().string();
+        if(file_name == filename) continue;
+        out << entry + "\n";
+    }
+    
+    out.close();
+    
+    cout << "[*] File: " << filename << endl;
+    cout << "[*] if file exists, it will be removed from staging area." << endl;
+}
+
 void Repository::makeBranch(const std::string& branch_name) {
     vector<string> currCommits;
-    ifstream infile(repoPath + "/etc/commit_ids.txt");
+    if(branch_name == "HEAD"){
+        cerr << "[-] Reserved keyword. - " << branch_name;
+        return;
+    }
+    
+    string inPath = repoPath + "/etc/commit_ids.txt";
+    ifstream infile(inPath);
+
     if(!infile) {
         cerr << "[-] Could not find commit_ids." << endl;
         return;
     } // getting commit ids to find the tip
+
+    if(filesystem::file_size(inPath) == 0) {
+        cout << "[*] no commit ids yet." << endl;
+        return;
+    }
+
     string line;
     while(getline(infile,line)) currCommits.push_back(line);
-    string commitTip = currCommits[currCommits.size()];
+    string commitTip = currCommits[currCommits.size() - 1];
     Branch newBranch(branch_name,commitTip);
+    
+    // add new branch to history
+    ofstream hFile(repoPath + "/branches/branches.txt",std::ios::app);
+    hFile << branch_name + "\n";
+    hFile.close();
 
     cout << "[+] Branch made successfully. - " + branch_name << endl;
 }
@@ -70,6 +145,7 @@ void Repository::viewLogs() const {
     }
 
     while(getline(infile,commitId)) {
+        if(commitId.empty()) return;
 
         if(logNum != 0 && logNum % 6 == 0) {
             string choice;
@@ -94,19 +170,30 @@ void Repository::viewLogs() const {
 }
 
 void Repository::checkout(const string& commitID) {
-    string headerfilePath = repoPath + "/headers/" + commitID + "_h.txt";
+    string branchName = commitID;
+    string resolvedId = commitID;
+    Branch b(resolvedId);
+
+    if(b.isABranch()) {
+        resolvedId = b.loadRef();
+        cout << "[+] Checking out branch - " << branchName << endl;
+    }
+
+    string headerfilePath = repoPath + "/headers/" + resolvedId + "_h.txt";
+
     if(!filesystem::exists(headerfilePath)) {
-        cout << "[-] Commit not found - " << commitID << endl;
+        cout << "[-] Commit not found - " << resolvedId << endl;
         return;
     }
-    cout << "[+] Checking out commit id: " << commitID << endl;
+
+    cout << "[+] Checking out commit id: " << resolvedId << endl;
     string filename;
     int iteration = 1;
     ifstream infile(headerfilePath,std::ios::in);
     while(getline(infile, filename)) {
         if (filename.empty()) continue;
-        StageFile sf(repoPath + "/snapshots/" + commitID
-        + "/" + commitID + "_" + to_string(iteration) + ".txt");
+        StageFile sf(repoPath + "/snapshots/" + resolvedId
+        + "/" + resolvedId + "_" + to_string(iteration) + ".txt");
         if(sf.failed()) return;
         ofstream outfile(filename, std::ios::out);
         outfile << sf.getContent();
@@ -157,7 +244,7 @@ void Repository::stageStatus(const string& stagefile) const {
 }
 
 void Repository::commit(const std::string& message) {
-    Commit c(message);
+    Commit c(message,repoPath);
     string commitIdFilePath = repoPath + "/etc/commit_ids.txt";
     if(!filesystem::exists(commitIdFilePath)) {
         cerr << "[-] commits file not found." << endl;
@@ -171,9 +258,20 @@ void Repository::commit(const std::string& message) {
         cout << "[-] no staged files to commit." << endl;
         return;
     }
+
     ofstream commitFile(commitIdFilePath, std::ios::app);
     commitFile << c.getId() + "\n";
     commitFile.close();
+
+    ifstream hIn(repoPath + "/branches/HEAD",std::ios::in);
+    hIn >> repo_name;
+    hIn.close();
+
+    string headPath = repoPath + "/branches/" + repo_name;
+    ofstream stream(headPath,std::ios::out);
+    stream << c.getId();
+    stream.close();
+
     ofstream headerFile(repoPath + "/headers/" + c.getId() + "_h.txt", std::ios::out);
     while(infile >> filename >> hash) {
         headerFile << filename + "\n";
@@ -191,6 +289,11 @@ void Repository::commit(const std::string& message) {
     infile.close();
     headerFile.close();
 
+    ofstream parentStream(repoPath + "/snapshots/" + c.getId() + "/parent",std::ios::out);
+    string parent = c.loadLatest();
+    parentStream << parent;
+    parentStream.close();
+
     c.setNumFiles(iteration - 1);  
     logbook.push_back(c);           
     cout << "[+] " + c.getId() + " was committed successfully." << endl;
@@ -200,12 +303,12 @@ void Repository::commit(const std::string& message) {
 }
 
 void Repository::add(const std::string& filename) {
-    int numFiles = 0;
     if(filename == ".") {
-        for(const auto& entry : filesystem::directory_iterator(".")) {
+        for(const auto& entry : filesystem::recursive_directory_iterator(".")) {
             string filepath = entry.path().string();
-            // skipping repo directory
-            if(filepath.find(".mygit") != string::npos) continue;
+            // skipping repo directory and real git
+            if(filepath.find(".jvc") != string::npos) continue;
+            if(filepath.find(".git") != string::npos) continue;
             // checking for regular file
             if(entry.is_regular_file()) {
                 StageFile sf(filepath);
@@ -214,11 +317,8 @@ void Repository::add(const std::string& filename) {
                     continue;
                 }
                 stagingArea.push_back(sf);
-                cout << "[+] File added to staging area." << endl;
             }
-            numFiles++;
         }
-        cout << "[+] " << to_string(numFiles) << " files staged." << endl;
         return;
     }
 
@@ -233,7 +333,6 @@ void Repository::add(const std::string& filename) {
         return;
     }
     stagingArea.push_back(sf);
-    cout << "[+] File added to staging area." << endl;
     file.close();
 }
 
@@ -248,14 +347,18 @@ void Repository::loadStagingArea() const {
         files.push_back(filename);
     }
     infile.close();
+    int numStaged = 0;
     for(auto file : stagingArea) {
         if (vectorContains(files, file.getFileName())) {
            cout << "[-] File was already staged, Skipping... - " << filename << endl;
            continue;  
         }
+        cout << "[+] File added to staging area." << endl;
         file.writeToFile(fileout);
+        numStaged++;
     }
     fileout.close();
+    cout << "[+] Staged " << to_string(numStaged) << " files." << endl;
 }
 
 void Repository::log() const {
@@ -265,7 +368,6 @@ void Repository::log() const {
         file << log.getMessage() + "\n";
         file << log.getTimestamp() + "\n";
         file << to_string(log.getNumFiles()) + "\n";
-        file << log.getParentId() + "\n";
     }
     file.close();
     cout << "[+] commit saved successfully." << endl;
@@ -275,7 +377,7 @@ void computeDiff(vector<string> v1,vector<string> v2);
 
 bool commitExists(const string& comID) {
     vector<string> commits;
-    const string path = ".mygit/etc/commit_ids.txt";
+    const string path = ".jvc/etc/commit_ids.txt";
     ifstream infile(path,std::ios::in);
     string name;
     while(getline(infile,name)) commits.push_back(name);
@@ -283,30 +385,39 @@ bool commitExists(const string& comID) {
     return vectorContains(commits,comID);
 }
 
-void Repository::diff(const std::string& commitId1,const std::string& commitId2) {
+void Repository::diff(const std::string& commitId) {
 
-    bool validCommits = true;
-
-    if(!commitExists(commitId1)) {
-        cout << "[-] commit does not exist. - " << commitId1 << endl;
-        validCommits = false;
-    }
-    if(!commitExists(commitId2)) {
-        cout << "[-] commit does not exist - " << commitId2 << endl;
-        if(validCommits) validCommits = false;
+    if(!commitExists(commitId)) {
+        cout << "[-] commit does not exist. - " << commitId << endl;
+        return;
     }
 
-    if(!validCommits) return;
+    Commit c(commitId);
+    c.loadParent();
+    string commitId2 = c.getParentId();
 
-    string path1 = repoPath + "/headers/" + commitId1 + "_h.txt"; 
+    if(commitId2.empty()) {
+        cout << "[*] No parent commit (root commit). Nothing to diff against." << endl;
+        return;
+    }
+
+    string path1 = repoPath + "/headers/" + commitId + "_h.txt";
     string path2 = repoPath + "/headers/" + commitId2 + "_h.txt";
-    
+
     string name;
     vector<string> files1;
     vector<string> files2;
 
-    ifstream infile_1(path1,std::ios::in);
-    ifstream infile_2(path2,std::ios::in);
+    ifstream infile_1(path1, std::ios::in);
+    ifstream infile_2(path2, std::ios::in);
+    if(!infile_1) {
+        cerr << "[-] Could not open header: " << path1 << endl;
+        return;
+    }
+    if(!infile_2) {
+        cerr << "[-] Could not open header: " << path2 << endl;
+        return;
+    }
     while(getline(infile_1,name)) {
         StageFile sf(name);
         if(sf.failed()){
@@ -333,8 +444,8 @@ void Repository::diff(const std::string& commitId1,const std::string& commitId2)
             int fIndex1 = vectorIndex(files1,f_name);
             int fIndex2 = vectorIndex(files2,f_name);
 
-            string in_path1 = repoPath + "/snapshots/" + commitId1 + "/"
-            + commitId1 + "_" + to_string(fIndex1 + 1) + ".txt";
+            string in_path1 = repoPath + "/snapshots/" + commitId + "/"
+            + commitId + "_" + to_string(fIndex1 + 1) + ".txt";
             
             string in_path2 = repoPath + "/snapshots/" + commitId2 + "/"
             + commitId2 + "_" + to_string(fIndex2 + 1) + ".txt";

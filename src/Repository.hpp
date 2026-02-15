@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <cstring>
 #include "Commit.hpp"
 #include "StageFile.hpp"
 
@@ -24,7 +25,9 @@ class Repository {
         void printRepoData();
         void clearStagingArea();
         void makeBranch(const std::string& branch_name);
-        void diff(const std::string& commitId1,const std::string& commitId2);
+        void printBranches();
+        void diff(const std::string& commitId);
+        void removeStageFile(const std::string& filename);
 
         void setRepoName(const std::string& name);
         

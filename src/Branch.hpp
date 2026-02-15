@@ -3,10 +3,15 @@
 
 #include <string>
 #include <fstream>
+#include <iostream>
+#include <vector>
+
+#include "Repository.hpp"
 
 class Branch {
 public:
     Branch(const std::string& branchName, const std::string& tipCommitId);
+    Branch(const std::string& branchName);
 
     std::string getName() const;
     std::string getTipCommitId() const;
@@ -15,6 +20,7 @@ public:
     void setName(const std::string& branchName);
 
     void updateHead(const std::string& tip_commit);
+    bool isABranch();
     std::string loadRef() const;
 private:
     std::string name;

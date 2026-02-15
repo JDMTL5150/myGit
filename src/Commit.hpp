@@ -12,7 +12,8 @@ class Commit {
         int numFiles;
     
     public:
-        Commit(const std::string& msg);
+        Commit(const std::string& msg,const std::string& path);
+        Commit(const std::string& commitId);
     
         std::string getParentId() const;
         int getNumFiles() const;
@@ -21,6 +22,8 @@ class Commit {
         std::string getTimestamp() const;
 
         void setNumFiles(int num);
+        void loadParent();
+        std::string loadLatest();
     
         void saveMetadata(const std::string& repoPath) const;
 };

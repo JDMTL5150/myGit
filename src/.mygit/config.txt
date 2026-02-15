@@ -1,3 +1,0 @@
-# Repository's configuration
-testRepo
-47710949-43309778-24090037
