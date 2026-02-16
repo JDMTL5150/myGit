@@ -8,26 +8,40 @@
 using namespace std;
 
 void printInfo(void) {
-    cout << "#### Jacob's mini git ####" << endl;
+    cout << endl;
+    cout << "#### Jacob's mini git (JVC) ####\n" << endl;
+    cout << "Commands:" << endl;
     cout << "init   - Initialize a repository in current directory." << endl;
     cout << "add    - Stage a file or files to the repository." << endl;
     cout << "commit - Commit the current stage area to the repo." << endl;
     cout << "status - Show currently staged files." << endl;
     cout << "delete - delete the local repository." << endl;
     cout << "clear  - Clears the staging area." << endl;
-    cout << "diff   - shows the modifications between 2 commits." << endl;
+    cout << "diff   - shows the modifications between commit and parent." << endl;
     cout << "repo   - prints the data of the local repo." << endl;
-    cout << "log    - Show log history." << endl;
+    cout << "log    - Show commit log history." << endl;
     cout << endl;
     cout << "Branch Commands:" << endl;
-    cout << "branch               - print all branches." << endl;
-    cout << "branch <branch_name> - create a branch." << endl;
+    cout << "branch                  - print all branches." << endl;
+    cout << "branch <branch_name>    - create a branch." << endl;
+    cout << "branch -r <branch_name> - remove a branch." << endl;
+    cout << endl;
+    cout << "Flags:" << endl;
+    cout << "Ex: jvc <command> -<flag> <input>" << endl;
+    cout << "(add)  : i - add a file to the jvcignore file." << endl;
+    cout << "(repo) : r - rename the local repository." << endl;
+    cout << endl;
 }
 
 int main(int argc, char* argv[]) {
     Repository repo;
     if (argc < 2) {
         cout << "USAGE: jvc <command> - use help for info" << endl;
+        return 1;
+    }
+
+    if (!filesystem::exists(".jvc")) {
+        cout << "[-] Not a jvc repository in current directory." << endl;
         return 1;
     }
 
@@ -47,9 +61,14 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        if (!filesystem::exists(".jvc")) {
-            cout << "[-] Not a jvc repository in current directory." << endl;
-            return 1;
+        if(argc >= 3 && strcmp(argv[2], "-i") == 0) {
+            if(argc != 4) {
+                cout << "USAGE: jvc add -i <filename>" << endl;
+                return 1;
+            }
+            const string file = argv[3];
+            repo.addIgnore(file);
+            return 0;
         }
 
         for(auto i = 2; i < argc; i++){
@@ -94,7 +113,14 @@ int main(int argc, char* argv[]) {
         }
     }
     else if(command == "repo") {
-        repo.printRepoData();
+        if(argc > 2 && strcmp(argv[2],"-r") == 0) {
+            if(argc != 4) {
+                cout << "USAGE: jvc repo -r <new_name>" << endl;
+                return 1;
+            }
+            repo.renameRepo(argv[3]);
+        }
+        else repo.printRepoData();
     }
     else if(command == "log") {
         repo.viewLogs();
@@ -102,6 +128,23 @@ int main(int argc, char* argv[]) {
     else if(command == "branch") {
         if(argc == 2) {
             repo.printBranches();
+        }
+        else if(argc >= 4) {
+            if(strcmp(argv[2],"-r") == 0) {
+                const char* branchName = argv[argc - 1];
+                if(branchName && *branchName) {
+                    Branch b(branchName);
+                    if(!b.isABranch()) {
+                        cerr << "[-] Could not find branch. - " << branchName << endl;
+                        return 1;
+                    }
+                    b.remove();
+                }
+            }
+            else {
+                cout << "[-] Command flag not found. - " << (argv[2] + 1) << endl;
+                return 1;
+            }
         }
         else if(argc == 3) {
             repo.makeBranch(argv[argc - 1]);

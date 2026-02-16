@@ -12,6 +12,7 @@ class Commit {
         int numFiles;
     
     public:
+        Commit();
         Commit(const std::string& msg,const std::string& path);
         Commit(const std::string& commitId);
     

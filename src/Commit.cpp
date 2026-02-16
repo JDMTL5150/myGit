@@ -6,6 +6,8 @@
 
 using namespace std;
 
+Commit::Commit() {}
+
 Commit::Commit(const string& commitId) :
     id(commitId) {}
 

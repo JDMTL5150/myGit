@@ -4,6 +4,7 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 #include <vector>
 
 #include "Repository.hpp"
@@ -19,7 +20,11 @@ public:
     void setTipCommitId(const std::string& id);
     void setName(const std::string& branchName);
 
-    void updateHead(const std::string& tip_commit);
+    std::vector<std::string> loadAllBranches();
+    void remove();
+
+    void updateRef(const std::string& tip_commit);
+    void updateHead(const std::string& newHead);
     bool isABranch();
     std::string loadRef() const;
 private:

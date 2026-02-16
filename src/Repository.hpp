@@ -7,6 +7,7 @@
 #include <cstring>
 #include "Commit.hpp"
 #include "StageFile.hpp"
+#include "Branch.hpp"
 
 static constexpr auto UUID_LENGTH = 24;
 
@@ -28,6 +29,13 @@ class Repository {
         void printBranches();
         void diff(const std::string& commitId);
         void removeStageFile(const std::string& filename);
+        std::string loadHead();
+
+        void renameRepo(const std::string& name);
+
+        std::string findIgnore();
+        std::vector<std::string> loadIgnore(const std::string& parent_path);
+        void addIgnore(const std::string& filename);
 
         void setRepoName(const std::string& name);
         
