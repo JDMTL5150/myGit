@@ -30,7 +30,7 @@ The binary is built as `../out/myGit`. Run it from anywhere (or add `out/` to yo
 
 ```bash
 ./out/myGit help
-# or, if you use it as 'jvc':
+# or, if you use it as 'jvc': (recommended to make a alias to access)
 jvc help
 ```
 
