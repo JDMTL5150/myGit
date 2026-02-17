@@ -5,6 +5,13 @@
 
 #include "Repository.hpp"
 
+// check if compiler is windows - cross platform
+#ifdef _MSC_VER
+#define STRCASECMP _stricmp
+#else
+#define STRCASECMP strcasecmp
+#endif
+
 using namespace std;
 
 void printInfo(void) {
@@ -40,12 +47,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (!filesystem::exists(".jvc")) {
+    const string command = argv[1];
+
+    if (command != "init" && !filesystem::exists(".jvc")) {
         cout << "[-] Not a jvc repository in current directory." << endl;
         return 1;
     }
-
-    const string command = argv[1];
 
     if (command == "init") {
         if (argc != 3) {
@@ -96,14 +103,14 @@ int main(int argc, char* argv[]) {
         repo.stageStatus("stage.txt");
     }
     else if(command == "delete") {
-        if(argc != 3 || strcasecmp(argv[2],"y") != 0){
+        if(argc != 3 || STRCASECMP(argv[2],"y") != 0){
             cout << "USAGE: jvc delete <y> (to confirm)" << endl;
             return 1;
         }
 
         if(filesystem::exists(".jvc")){
             filesystem::remove_all(".jvc");
-            string commitspath = "/etc/commit_ids.txt";
+            string commitspath = ".jvc/etc/commit_ids.txt";
             ofstream f(commitspath,std::ios::trunc);
             cout << "[+] Local repository deleted." << endl;
             f.close();

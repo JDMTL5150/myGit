@@ -15,6 +15,7 @@ class Repository {
     public:
         Repository();
         Repository(std::string repoName);
+
         void init();
         void add(const std::string& filename);
         void commit(const std::string& message);
@@ -69,5 +70,7 @@ int vectorIndex(std::vector<T>& v,T& item) {
     }
     return -1;
 }
+
+bool isExecutable(const std::string& file);
 
 #endif

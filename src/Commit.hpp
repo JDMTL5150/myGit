@@ -26,6 +26,7 @@ class Commit {
         void loadParent();
         std::string loadLatest();
     
+        std::vector<std::string> loadLastCommitHashes();
         void saveMetadata(const std::string& repoPath) const;
 };
 

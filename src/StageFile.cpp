@@ -1,10 +1,5 @@
-
 #include "StageFile.hpp"
-
 #include "Commit.hpp"
-
-#include <functional>
-#include <string>
 
 using namespace std;
 

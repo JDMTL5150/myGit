@@ -67,6 +67,43 @@ string Commit::loadLatest() {
     return comms.back();
 }
 
+vector<string> Commit::loadLastCommitHashes() {
+    std::hash<string> hasher;
+    vector<string> hashes;
+    string latest = loadLatest();
+    if(latest.empty()) {
+        cerr << "[-] Error loading latest commit." << endl;
+        return null;
+    }
+    int iteration = 1;
+    string f,content;
+    while(true) {
+        ifstream file(".jvc/snapshots/" + latest + "/"
+        + latest + "_" + to_string(iteration) + ".txt"
+        ,std::ios::in);
+        if(!file) break;
+        while(getline(file,f)) content += f;
+        hashes.push_back(hasher(content));
+        file.close();
+    }
+    return hashes;  
+}
+
+// get number of files in current objects commit id
+int Commit::getNumFiles() {
+    ifstream file(".jvc/commits.txt",std::ios::in);
+    string id,message,timestamp;
+    string numFiles;
+    while(getline(file,id)) {
+        getline(file,message);
+        getline(file,timestamp);
+        getline(file,numFiles);
+        if(id == this->id) {
+            return numFiles
+        }
+    }
+}
+
 string Commit::getId() const {
     return id;
 }

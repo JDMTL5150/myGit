@@ -5,8 +5,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-
-class Commit;
+#include <functional>
 
 class StageFile {
 private:

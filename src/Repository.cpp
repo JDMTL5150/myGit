@@ -92,7 +92,7 @@ void Repository::printBranches() {
     }
     cout << "[*] BRANCHES [*]" << endl;
     while(getline(infile,line)) {
-        if(line == currentHead) cout << "(current) " << line << endl;
+        if(line == currentHead) cout << line << " (current)" << endl;
         else cout << line << endl; 
     }
     infile.close();
@@ -116,7 +116,9 @@ vector<string> Repository::loadIgnore(const string& parent_path) {
     vector<string> toIgnores;
     ifstream ignoreFile(parent_path + "/" + ".jvcignore");
     string line;
-    while(getline(ignoreFile,line)) toIgnores.push_back(line);
+    while(getline(ignoreFile, line)) {
+        if(!line.empty()) toIgnores.push_back(line);
+    }
     ignoreFile.close();
     return toIgnores;
 }
@@ -300,8 +302,8 @@ void Repository::printRepoData() {
     getline(infile,name);
     getline(infile,name);
     getline(infile,uuid);
-    cout << "[+] Repo Name: " << name << endl;
-    cout << "[+] Repo UUID: " << uuid << endl;
+    cout << "[*] Repo Name: " << name << endl;
+    cout << "[*] Repo UUID: " << uuid << endl;
     infile.close();
 }
 
@@ -356,6 +358,7 @@ void Repository::commit(const std::string& message) {
     ofstream stream(headPath,std::ios::out);
     stream << c.getId();
     stream.close();
+    vector<string> hashes = c.loadLastCommitHashes();
     // write file list to header; copy each staged file into snapshot dir
     ofstream headerFile(repoPath + "/headers/" + c.getId() + "_h.txt", std::ios::out);
     while(infile >> filename >> hash) {
@@ -396,16 +399,26 @@ void Repository::add(const std::string& filename) {
     }
 
     if(filename == ".") {
-        for(const auto& entry : filesystem::recursive_directory_iterator(".")) {
+        using rdi_t = filesystem::recursive_directory_iterator;
+        // using iterator based looping
+        for(rdi_t it("."); it != rdi_t(); ++it) {
+            const auto& entry = *it;
             string filepath = entry.path().string();
-            // skipping repo directory, real git and .jvcignore files
-            bool skipped = false;
-            if(hasIgnore) {
-                for(const auto& path : toIgnores) {
-                    if(filepath.find(path) != std::string::npos) skipped = true;
+            if(entry.is_directory()) {
+                string name = entry.path().filename().string();
+                if(name == ".jvc" || name == ".git") {
+                    it.disable_recursion_pending();
+                    continue;
                 }
             }
-
+            // skipping paths that matched ignore patterns
+            bool skipped = false;
+            if(hasIgnore && toIgnores.size() > 0) {
+                for(const auto& ign : toIgnores) {
+                    if(ign.empty()) continue;
+                    if(filepath.find(ign) != std::string::npos) { skipped = true; break; }
+                }
+            }
             if(skipped) continue;
 
             if(filepath.find(".jvc") != string::npos) continue;
@@ -425,6 +438,7 @@ void Repository::add(const std::string& filename) {
 
     if(hasIgnore) {
         for(const auto& it : toIgnores) {
+            if(it.empty()) continue;
             if(filename.find(it) != std::string::npos) {
                 cout << "[*] file in .jvcignore, skipping... - " << filename << endl;
                 return;
@@ -549,6 +563,7 @@ void Repository::diff(const std::string& commitId) {
     }
     // only diff files that exist in both commits
     for(auto f_name : files1) {
+        if(isExecutable(f_name)) continue;
         vector<string> lines_file1;
         vector<string> lines_file2;
         if(vectorContains(files2,f_name)){
@@ -569,8 +584,21 @@ void Repository::diff(const std::string& commitId) {
             }
 
             string line;
-            while(getline(f1,line)) lines_file1.push_back(line); 
-            while(getline(f2,line)) lines_file2.push_back(line);
+            string content1,content2;
+            while(getline(f1,line)) {
+                lines_file1.push_back(line);
+                content1 += line;
+            } 
+            while(getline(f2,line)) {
+                lines_file2.push_back(line);
+                content2 += line;
+            }
+
+            std::hash<string> hasher;
+            content1 = to_string(hasher(content1));
+            content2 = to_string(hasher(content2));
+            
+            if(content1 == content2) continue;
 
             cout << "[*] FILE: " << f_name << endl;
             computeDiff(lines_file2,lines_file1);
@@ -579,6 +607,27 @@ void Repository::diff(const std::string& commitId) {
         }
     }
     cout << "[+] Diff operation complete." << endl;
+}
+
+// check if the file is a executable
+bool isExecutable(const std::string& file) {
+    const int magic_length = 4;
+    const int magic_count = 2;
+    unsigned char magic[magic_count][magic_length] = {
+        {0x7F,'E','L','F'}, // ELF magic number
+        {'M','Z',0,0} // EXE magic number
+    };
+    filesystem::path filePath(file);
+    ifstream fileStream(filePath,std::ios::binary);
+    unsigned char buff[4];
+    fileStream.read(reinterpret_cast<char*>(buff),sizeof(buff));
+    for(int i = 0; i < magic_count; i++) {
+        if(equal(buff,buff + 4,magic[i])) {
+            return true;
+        }
+    }
+    fileStream.close();
+    return false;
 }
 
 // Line diff: v1 = old file lines, v2 = new; print +/- and count.
