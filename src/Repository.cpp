@@ -616,7 +616,7 @@ void Repository::diff(const std::string& commitId) {
     }
     // only diff files that exist in both commits
     for(auto f_name : files1) {
-        if(isExecutable(f_name)) continue;
+        if(isBinaryFile(f_name)) continue;
         string fname_nExt = removeExtension(f_name);
         string extension = findExtension(f_name);
         vector<string> lines_file1;
@@ -662,13 +662,17 @@ void Repository::diff(const std::string& commitId) {
     cout << "[+] Diff operation complete." << endl;
 }
 
-// check if the file is a executable
-bool isExecutable(const std::string& file) {
-    const int magic_length = 4;
-    const int magic_count = 2;
-    unsigned char magic[magic_count][magic_length] = {
-        {0x7F,'E','L','F'}, // ELF magic number
-        {'M','Z',0,0} // EXE magic number
+// struct to hold magic numbers of varying lengths
+typedef struct {
+    std::vector<unsigned char> bytes;
+}Magic;
+
+// check if the file is a binary file
+bool isBinaryFile(const std::string& file) {
+    vector<Magic> magic = {
+        {{0x7F,'E','L','F'}},
+        {{'M','Z'}},
+        {{0x89,'P','N','G',0x0D,0x0A,0x1A,0x0A}}
     };
     filesystem::path filePath(file);
     ifstream fileStream(filePath,std::ios::binary);

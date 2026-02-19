@@ -75,6 +75,6 @@ int vectorIndex(std::vector<T>& v,T& item) {
     return -1;
 }
 
-bool isExecutable(const std::string& file);
+bool isBinaryFile(const std::string& file);
 
 #endif
