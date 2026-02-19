@@ -271,19 +271,19 @@ void Repository::checkout(const string& commitID) {
 
     cout << "[+] Checking out commit id: " << resolvedId << endl;
     string filename;
-    int iteration = 1;
     ifstream infile(headerfilePath,std::ios::in);
     // restore each file from this commit's snapshot
     while(getline(infile, filename)) {
+        string f_noExt = removeExtension(filename);
+        string extension = findExtension(filename);
         if (filename.empty()) continue;
         StageFile sf(repoPath + "/snapshots/" + resolvedId
-        + "/" + resolvedId + "_" + to_string(iteration) + ".txt");
+        + "/" + f_noExt + "_" + resolvedId + extension);
         if(sf.failed()) return;
         ofstream outfile(filename, std::ios::out);
         outfile << sf.getContent();
         outfile.close();
         cout << "[+] file restored: " << filename << endl;
-        iteration++;
     }
     infile.close();
     string time = makeTimestamp();
@@ -320,13 +320,40 @@ void Repository::stageStatus(const string& stagefile) const {
     string filename,hash;
     int stageNum = 0;
     ifstream infile(repoPath + "/" + stagefile,std::ios::in);
-    while(infile >> filename >> hash) {
+    while(infile >> filename) {
         cout << "[*] Staged File " << to_string(stageNum + 1) << ":" << endl;
-        cout << "FileName: " << filename << endl;
-        cout << "File Hash: " << hash << endl;
+        cout << "Tracking -> " << filename << endl;
         stageNum++;
     }
     infile.close();
+}
+
+// removes file extension if there is one
+string removeExtension(const string& filename) {
+    size_t i = 0;
+    while (i < filename.size() && filename[i] != '.') {
+        i++;
+    }
+
+    if (i < filename.size()) {
+        return filename.substr(0, i);
+    }
+    return filename;
+}
+
+// find the file extension it it has
+string findExtension(string& filename) {
+    size_t dot_index = filename.find(".");
+    string extension;
+    if(dot_index != string::npos){
+        for(size_t i = dot_index; i < filename.size(); i++) {
+            extension += filename[i];
+        }
+        return extension;
+    }
+    else {
+        return "";
+    }
 }
 
 // Create commit from staged files; snapshot files, update branch ref and commit log.
@@ -334,43 +361,69 @@ void Repository::commit(const std::string& message) {
     Commit c(message,repoPath);
     string parent = c.loadLatest();
     string commitIdFilePath = repoPath + "/etc/commit_ids.txt";
+    
     if(!filesystem::exists(commitIdFilePath)) {
         cerr << "[-] commits file not found." << endl;
     }
-    ifstream infile(repoPath + "/stage.txt", std::ios::in | std::ios::out);
-    auto iteration = 1;
+    ifstream infile(repoPath + "/stage.txt", std::ios::in);
+    auto iteration = 0;
     string filename = "";
     string hash = "";
-    filesystem::create_directory(repoPath + "/snapshots/" + c.getId());
     if(filesystem::file_size(repoPath + "/" + "stage.txt") == 0) {
         cout << "[-] no staged files to commit." << endl;
         return;
     }
 
+    string hashes;
+    vector<StageFile> files;
+
+    while(infile >> filename) {
+        StageFile sf(filename);
+        if(sf.failed()){
+            cerr << "[-] failed to load the StageFile. - " << filename << endl;
+            continue;
+        }
+        files.push_back(sf);
+    }
+    for(size_t i = 0; i < files.size(); i++) {
+        hashes += files[i].getMetaData();
+    }
+
+    if(getNumCommits() > 0 && checkoutHash(hashes) == parent) {
+        cout << "[*] Nothing to commit, no changes were made." << endl;
+        return;
+    }
+
+    c.setCommitId(checkoutHash(hashes));
+    filesystem::create_directory(repoPath + "/snapshots/" + c.getId());
+
     ofstream commitFile(commitIdFilePath, std::ios::app);
     commitFile << c.getId() + "\n";
     commitFile.close();
     // update current branch ref to this commit
+    string branchName;
     ifstream hIn(repoPath + "/branches/HEAD",std::ios::in);
-    hIn >> repo_name;
+    hIn >> branchName;
     hIn.close();
-    string headPath = repoPath + "/branches/" + repo_name;
+    string headPath = repoPath + "/branches/" + branchName;
     ofstream stream(headPath,std::ios::out);
     stream << c.getId();
     stream.close();
-    vector<string> hashes = c.loadLastCommitHashes();
-    // write file list to header; copy each staged file into snapshot dir
+    // write file list to header - copy each staged file into snapshot dir
     ofstream headerFile(repoPath + "/headers/" + c.getId() + "_h.txt", std::ios::out);
-    while(infile >> filename >> hash) {
+    for(auto file : files) {
+        filename = file.getFileName();
         headerFile << filename + "\n";
-        StageFile sf(filename);
-        if(sf.failed()){
-            cerr << "[-] failed to load the StageFile. - " << filename << endl;
-            return; 
-        }
+        
+        filename = filesystem::path(filename).filename().string();
+        string fileExt = findExtension(filename);
+        
+        string name = removeExtension(filename);
+
         ofstream outfile(repoPath + "/snapshots/"
-            + c.getId() + "/" + c.getId() + "_" + to_string(iteration) + ".txt", std::ios::out);
-        outfile << sf.getContent();
+            + c.getId() + "/" + name + "_" + c.getId() + fileExt, std::ios::out);
+        
+        outfile << file.getContent();
         outfile.close();
         iteration++;
     }
@@ -380,7 +433,7 @@ void Repository::commit(const std::string& message) {
     ofstream parentStream(repoPath + "/snapshots/" + c.getId() + "/parent",std::ios::out);
     parentStream << parent;
     parentStream.close();
-    c.setNumFiles(iteration - 1);
+    c.setNumFiles(iteration);
     logbook.push_back(c);
     cout << "[+] " + c.getId() + " was committed successfully." << endl;
     ofstream f(repoPath + "/" + "stage.txt", std::ios::trunc);  // clear staging area
@@ -564,17 +617,17 @@ void Repository::diff(const std::string& commitId) {
     // only diff files that exist in both commits
     for(auto f_name : files1) {
         if(isExecutable(f_name)) continue;
+        string fname_nExt = removeExtension(f_name);
+        string extension = findExtension(f_name);
         vector<string> lines_file1;
         vector<string> lines_file2;
         if(vectorContains(files2,f_name)){
-            int fIndex1 = vectorIndex(files1,f_name);
-            int fIndex2 = vectorIndex(files2,f_name);
 
             string in_path1 = repoPath + "/snapshots/" + commitId + "/"
-            + commitId + "_" + to_string(fIndex1 + 1) + ".txt";
+            + fname_nExt + "_" + commitId + extension;
             
             string in_path2 = repoPath + "/snapshots/" + commitId2 + "/"
-            + commitId2 + "_" + to_string(fIndex2 + 1) + ".txt";
+            + fname_nExt + "_" + commitId2 + extension;
 
             ifstream f1(in_path1,std::ios::in);
             ifstream f2(in_path2,std::ios::in);
@@ -600,7 +653,7 @@ void Repository::diff(const std::string& commitId) {
             
             if(content1 == content2) continue;
 
-            cout << "[*] FILE: " << f_name << endl;
+            cout << "[*] FILE:" << f_name << "\n" << endl;
             computeDiff(lines_file2,lines_file1);
             f1.close();
             f2.close();

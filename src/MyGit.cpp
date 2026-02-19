@@ -5,6 +5,8 @@
 
 #include "Repository.hpp"
 
+#define PROGRAM_VERSION "JVC version : 1.0.0"
+
 // check if compiler is windows - cross platform
 #ifdef _MSC_VER
 #define STRCASECMP _stricmp
@@ -48,6 +50,11 @@ int main(int argc, char* argv[]) {
     }
 
     const string command = argv[1];
+
+    if(command == "--version") {
+        cout << PROGRAM_VERSION << endl;
+        return 0;
+    }
 
     if (command != "init" && !filesystem::exists(".jvc")) {
         cout << "[-] Not a jvc repository in current directory." << endl;

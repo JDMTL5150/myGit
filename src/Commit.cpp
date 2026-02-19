@@ -16,22 +16,10 @@ Commit::Commit(const string& msg,const string& repoName):
         string path = repoName + "/etc/commit_ids.txt";
         string comID;
         vector<string> commits;
-        bool isUnique = true;
         ifstream commFile(path,std::ios::in);
         // reading commits into a vector
         while(getline(commFile,comID)){
             commits.push_back(comID);
-        }
-        // checking for unique commit id
-        while(true){
-            id = checkoutHash();
-            for(auto comId : commits){
-                if(comID == id) {
-                    isUnique = false;
-                }
-            }
-            if(!isUnique) continue;
-            else break;
         }
         if(commits.size() > 0) parentId = commits.back();
     }
@@ -42,10 +30,6 @@ string Commit::getParentId() const {
 
 string Commit::getMessage() const {
     return message;
-}
-
-int Commit::getNumFiles() const {
-    return numFiles;
 }
 
 void Commit::setNumFiles(int num) {
@@ -73,7 +57,7 @@ vector<string> Commit::loadLastCommitHashes() {
     string latest = loadLatest();
     if(latest.empty()) {
         cerr << "[-] Error loading latest commit." << endl;
-        return null;
+        return hashes;
     }
     int iteration = 1;
     string f,content;
@@ -83,14 +67,18 @@ vector<string> Commit::loadLastCommitHashes() {
         ,std::ios::in);
         if(!file) break;
         while(getline(file,f)) content += f;
-        hashes.push_back(hasher(content));
+        hashes.push_back(to_string(hasher(content)));
         file.close();
     }
     return hashes;  
 }
 
-// get number of files in current objects commit id
 int Commit::getNumFiles() {
+    return numFiles;
+}
+
+// get number of files in current objects commit id
+int Commit::getNumFiles_g() {
     ifstream file(".jvc/commits.txt",std::ios::in);
     string id,message,timestamp;
     string numFiles;
@@ -99,9 +87,14 @@ int Commit::getNumFiles() {
         getline(file,timestamp);
         getline(file,numFiles);
         if(id == this->id) {
-            return numFiles
+            return stoi(numFiles);
         }
     }
+    return -1;
+}
+
+void Commit::setCommitId(const string& commId) {
+    this->id = commId;
 }
 
 string Commit::getId() const {
@@ -119,18 +112,22 @@ string makeTimestamp() {
     return timestamp;
 }
 
-string checkoutHash() {
-    string checkout = "";
-    unsigned char c = 0;
-    srand(time(0));
-    int max = 126;
-    int min = 32;
-    int count = 0;
-    while(count < 8){
-        c = rand() % (max - min + 1) + min;
-        if(!isalnum(c)) continue;
-        checkout += c;
-        count++;
-    }
+int getNumCommits() {
+    auto i = 0;
+    string path = ".jvc/etc/commit_ids.txt";
+    ifstream infile(path,std::ios::in);
+    if(!infile) return -1;
+    string commit;
+    while(getline(infile,commit)) i++;
+    infile.close();
+    return i;
+}
+
+string checkoutHash(const string& content) {
+    std::hash<string> hasher;
+    string checkout = content;
+
+    checkout = to_string(hasher(checkout));
+
     return checkout;
 }

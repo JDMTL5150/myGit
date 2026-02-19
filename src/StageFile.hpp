@@ -1,3 +1,4 @@
+#pragma once
 
 #ifndef STAGEFILE_HPP_
 #define STAGEFILE_HPP_
@@ -6,6 +7,7 @@
 #include <iostream>
 #include <string>
 #include <functional>
+#include <filesystem>
 
 class StageFile {
 private:
@@ -17,6 +19,7 @@ public:
     explicit StageFile(const std::string& filename);
 
     std::string getContent() const;
+    std::string getMetaData() const;
     std::string getFileName() const;
     bool failed();
     void writeToFile(std::ofstream& file) const;

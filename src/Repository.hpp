@@ -1,3 +1,4 @@
+#pragma once
 
 #ifndef REPOSITORY_HPP_
 #define REPOSITORY_HPP_
@@ -50,6 +51,9 @@ class Repository {
         std::string repo_name;
         
 };
+
+std::string removeExtension(const std::string& filename);
+std::string findExtension(std::string& filename);
 
 template<typename T>
 bool vectorContains(const std::vector<T>& vec, const T& comp) {

@@ -1,3 +1,4 @@
 .jvc/
 .jvcignore
-src/input.txt
+/src/input.txt
+out/myGit

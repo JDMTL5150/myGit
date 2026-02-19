@@ -1,3 +1,46 @@
-this is the current configuration 1.0.0
+#include "StageFile.hpp"
+#include "Commit.hpp"
 
-This was added. (hopefully the diff will show it)
+using namespace std;
+
+StageFile::StageFile(const std::string& file)
+    : isFail(false),filename(file) {
+    ifstream in(file, ios::in);
+    if (!in) {
+        cerr << "[-] Could not open file for staging: " << file << endl;
+        isFail = true;
+        return;
+    }
+
+    this->filename = filename = filesystem::path(filename).filename().string();
+
+    string line;
+    while (getline(in, line)) {
+        content += line;
+        content.push_back('\n');
+    }
+    in.close();
+
+    hash<string> hasher;
+    metadata = to_string(hasher(content));
+}
+
+std::string StageFile::getContent() const {
+    return content;
+}
+
+bool StageFile::failed(){
+    return isFail;
+}
+
+string StageFile::getFileName() const {
+    return filename; 
+}
+
+void StageFile::writeToFile(ofstream& file) const {
+    if (!file) {
+        cerr << "[-] No file found for writing stage entry." << endl;
+        return;
+    }
+    file << filename << " " << metadata << '\n';
+}

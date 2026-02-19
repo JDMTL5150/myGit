@@ -12,6 +12,8 @@ StageFile::StageFile(const std::string& file)
         return;
     }
 
+    this->filename = filename = filesystem::path(filename).filename().string();
+
     string line;
     while (getline(in, line)) {
         content += line;
@@ -27,6 +29,10 @@ std::string StageFile::getContent() const {
     return content;
 }
 
+string StageFile::getMetaData() const {
+    return metadata;
+}
+
 bool StageFile::failed(){
     return isFail;
 }
@@ -40,5 +46,5 @@ void StageFile::writeToFile(ofstream& file) const {
         cerr << "[-] No file found for writing stage entry." << endl;
         return;
     }
-    file << filename << " " << metadata << '\n';
+    file << filename << '\n';
 }

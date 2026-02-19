@@ -6,7 +6,6 @@
 #include <iostream>
 #include <filesystem>
 #include <vector>
-
 #include "Repository.hpp"
 
 class Branch {
@@ -22,11 +21,11 @@ public:
 
     std::vector<std::string> loadAllBranches();
     void remove();
-
     void updateRef(const std::string& tip_commit);
     void updateHead(const std::string& newHead);
     bool isABranch();
     std::string loadRef() const;
+
 private:
     std::string name;
     std::string branchId;  // commit ID this branch points to (tip)
